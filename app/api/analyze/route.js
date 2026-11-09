@@ -5,7 +5,7 @@ export async function POST(request) {
   try {
     const lead = await request.json()
     if (!lead?.name || typeof lead.name !== 'string') return NextResponse.json({ error: 'Lead inválido.' }, { status: 400 })
-    const prompt = `Analise este negócio local usando somente estes dados públicos: ${JSON.stringify({ nome: lead.name, endereco: lead.address, telefone: lead.phone, site: lead.website, sinais: lead.reasons })}. Responda SOMENTE JSON válido, sem markdown, neste formato: {"score":number de 0 a 100,"resumo":"até 160 caracteres, sem inventar fatos","mensagem":"abordagem curta em português brasileiro, pessoal, educada e sem pressão","proximoPasso":"uma ação concreta"}. Não afirme ter visitado o site se ele não foi fornecido.`
+    const prompt = `Analise este negócio local usando somente estes dados públicos: ${JSON.stringify({ nome: lead.name, endereco: lead.address, telefone: lead.phone, site: lead.website, sinais: lead.reasons })}. Responda SOMENTE JSON válido, sem markdown, neste formato: {"score":number de 0 a 100,"resumo":"até 160 caracteres, sem inventar fatos","mensagem":"abordagem curta em português brasileiro, pessoal, educada e sem pressão","proximoPasso":"uma ação concreta"}. A mensagem deve posicionar o serviço como presença digital estratégica e profissional. Nunca use “site simples”, “barato”, “sem compromisso”, “rapidinho”, “só uma ideia” ou linguagem que diminua valor. Não afirme ter visitado o site se ele não foi fornecido.`
     const response = await fetch('https://integrate.api.nvidia.com/v1/chat/completions', {
       method: 'POST',
       headers: { Authorization: `Bearer ${process.env.NVIDIA_API_KEY}`, 'Content-Type': 'application/json', Accept: 'application/json' },
