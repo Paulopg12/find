@@ -18,7 +18,7 @@ export async function GET(request) {
     })
     const result = await response.json()
     if (!response.ok) return NextResponse.json({ error: result.error || 'O Firecrawl não conseguiu executar a busca.' }, { status: response.status })
-    const items = Array.isArray(result.data) ? result.data : []
+    const items = Array.isArray(result.data?.web) ? result.data.web : []
     const leads = items.filter(item => item.url).map((item, index) => {
       const text = `${item.description || ''} ${item.markdown || ''}`.slice(0, 3000)
       const title = cleanText(item.title || item.metadata?.title || new URL(item.url).hostname.replace('www.', ''))
