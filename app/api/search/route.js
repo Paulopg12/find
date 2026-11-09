@@ -14,13 +14,10 @@ export async function GET(request) {
   const city = searchParams.get('city')?.trim(), category = searchParams.get('category')
   if (!city || !tags[category]) return NextResponse.json({error:'Informe cidade e segmento válidos.'},{status:400})
   try {
-    const geo = await fetchWithTimeout(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&q=${encodeURIComponent(`${city}, Brasil`)}`, { headers:{'User-Agent':'EncontraLeads/1.0'} })
-    if (!geo.ok) throw new Error('geocoder')
-    const places = await geo.json()
-    if (!places[0]?.boundingbox) return NextResponse.json({error:'Cidade não encontrada. Use “Cidade, UF”.'},{status:404})
-    const [south, north, west, east] = places[0].boundingbox
     const [key,value] = tags[category]
-    const query = `[out:json][timeout:25];(nwr["${key}"="${value}"]["name"](${south},${west},${north},${east}););out center tags 50;`
+    const safeCity = city.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+    // Brasil é a relação OSM 59470. Procurar a área administrativa aqui evita depender do Nominatim.
+    const query = `[out:json][timeout:25];area(3600059470)->.br;area["boundary"="administrative"]["admin_level"="8"]["name"="${safeCity}"](area.br)->.city;(nwr["${key}"="${value}"]["name"](area.city););out center tags 50;`
     let data
     for (const endpoint of overpassEndpoints) {
       try {
@@ -31,5 +28,5 @@ export async function GET(request) {
     if (!data) return NextResponse.json({error:'As fontes de dados estão ocupadas agora. Aguarde um minuto e tente de novo.'},{status:503})
     const leads = data.elements.map(x => ({id:`${x.type}-${x.id}`,name:x.tags.name,address:[x.tags['addr:street'],x.tags['addr:housenumber'],x.tags['addr:city']].filter(Boolean).join(', '),phone:x.tags.phone||x.tags['contact:phone']||'',website:x.tags.website||x.tags['contact:website']||'',tags:x.tags}))
     return NextResponse.json({leads})
-  } catch { return NextResponse.json({error:'Não foi possível localizar essa cidade agora. Tente usar “Cidade, UF”.'},{status:503}) }
+  } catch { return NextResponse.json({error:'Não foi possível consultar os dados públicos agora. Tente novamente em alguns instantes.'},{status:503}) }
 }
