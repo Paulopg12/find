@@ -14,16 +14,18 @@ export async function GET(request) {
     const response = await fetch('https://api.firecrawl.dev/v2/search', {
       method: 'POST',
       headers: { Authorization: `Bearer ${process.env.FIRECRAWL_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: `${category} em ${city}, Brasil ${criteria}`, limit: 5, sources: [{ type: 'web' }], scrapeOptions: { formats: ['markdown'] } }),
+      body: JSON.stringify({ query: `${category} em ${city}, Brasil ${criteria}`, limit: 5, sources: [{ type: 'web' }], scrapeOptions: { formats: ['markdown', 'links'] } }),
       cache: 'no-store'
     })
     const result = await response.json()
     if (!response.ok) return NextResponse.json({ error: result.error || 'O Firecrawl não conseguiu executar a busca.' }, { status: response.status })
     const items = Array.isArray(result.data?.web) ? result.data.web : []
     const leads = items.filter(item => item.url).map((item, index) => {
-      const text = `${item.description || ''} ${item.markdown || ''}`.slice(0, 3000)
+      const links = Array.isArray(item.links) ? item.links : []
+      const instagram = links.find(link => /(?:www\.)?instagram\.com\//i.test(typeof link === 'string' ? link : link.url || '')) || ''
+      const text = `${item.description || ''} ${item.markdown || ''} ${instagram}`.slice(0, 4000)
       const title = cleanText(item.title || item.metadata?.title || new URL(item.url).hostname.replace('www.', ''))
-      return { id: `firecrawl-${index}-${item.url}`, name: title, address: cleanText(item.metadata?.ogLocale || city), phone: phoneFrom(text), website: item.url, criteria, tags: { website: item.url, phone: phoneFrom(text), description: cleanText(item.description), opening_hours: '', instagram: /instagram\.com/i.test(text) ? 'found' : '' } }
+      return { id: `firecrawl-${index}-${item.url}`, name: title, address: cleanText(item.metadata?.ogLocale || city), phone: phoneFrom(text), website: item.url, instagram: typeof instagram === 'string' ? instagram : instagram.url || '', criteria, tags: { website: item.url, phone: phoneFrom(text), description: cleanText(item.description), opening_hours: '', instagram: /instagram\.com/i.test(text) ? (typeof instagram === 'string' ? instagram : instagram.url || 'found') : '' } }
     })
     return NextResponse.json({ leads })
   } catch { return NextResponse.json({ error: 'Não foi possível conectar ao Firecrawl agora.' }, { status: 502 }) }
