@@ -8,12 +8,13 @@ export async function GET(request) {
   const { searchParams } = new URL(request.url)
   const city = cleanText(searchParams.get('city'))
   const category = cleanText(searchParams.get('category'))
+  const criteria = cleanText(searchParams.get('criteria')).slice(0, 500)
   if (!city || !category) return NextResponse.json({ error: 'Informe cidade e segmento.' }, { status: 400 })
   try {
     const response = await fetch('https://api.firecrawl.dev/v2/search', {
       method: 'POST',
       headers: { Authorization: `Bearer ${process.env.FIRECRAWL_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: `${category} em ${city}, Brasil`, limit: 5, sources: [{ type: 'web' }], scrapeOptions: { formats: ['markdown'] } }),
+      body: JSON.stringify({ query: `${category} em ${city}, Brasil ${criteria}`, limit: 5, sources: [{ type: 'web' }], scrapeOptions: { formats: ['markdown'] } }),
       cache: 'no-store'
     })
     const result = await response.json()
@@ -22,7 +23,7 @@ export async function GET(request) {
     const leads = items.filter(item => item.url).map((item, index) => {
       const text = `${item.description || ''} ${item.markdown || ''}`.slice(0, 3000)
       const title = cleanText(item.title || item.metadata?.title || new URL(item.url).hostname.replace('www.', ''))
-      return { id: `firecrawl-${index}-${item.url}`, name: title, address: cleanText(item.metadata?.ogLocale || city), phone: phoneFrom(text), website: item.url, tags: { website: item.url, phone: phoneFrom(text), description: cleanText(item.description), opening_hours: '', instagram: /instagram\.com/i.test(text) ? 'found' : '' } }
+      return { id: `firecrawl-${index}-${item.url}`, name: title, address: cleanText(item.metadata?.ogLocale || city), phone: phoneFrom(text), website: item.url, criteria, tags: { website: item.url, phone: phoneFrom(text), description: cleanText(item.description), opening_hours: '', instagram: /instagram\.com/i.test(text) ? 'found' : '' } }
     })
     return NextResponse.json({ leads })
   } catch { return NextResponse.json({ error: 'Não foi possível conectar ao Firecrawl agora.' }, { status: 502 }) }
